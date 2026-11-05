@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: OptiGuide
+## Notes: Lightweight Horde fast-leveling guide. Auto-routes to the best next objective with an on-screen arrow, route panel, and optional auto accept/turn-in.
+## Author: Devin
+## Version: 1.0.0
+## SavedVariables: OptiGuideDB
+## SavedVariablesPerCharacter: OptiGuideCharDB
+
+core.lua
+data_horde.lua
+router.lua
+arrow.lua
+panel.lua
+auto.lua
