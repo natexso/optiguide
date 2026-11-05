@@ -27,10 +27,10 @@ $haveJit = Test-Path $LuaJit
 # --- syntax check each file ---
 if ($haveJit) {
   foreach ($f in $luaFiles) {
-    $out = & $LuaJit -e "assert(loadfile([[$($f -replace '\\','\\')]]))" 2>&1
-    if ($LASTEXITCODE -eq 0) { $out2 = & $LuaJit -e "assert(loadfile([[$(Resolve-Path (Join-Path $AddonDir $f))]]))" 2>&1 }
+    $full = (Resolve-Path (Join-Path $AddonDir $f)).Path
+    $out = & $LuaJit -e "assert(loadfile([[$full]]))" 2>&1
     if ($LASTEXITCODE -eq 0) { Log "PASS syntax $f" }
-    else { Log "FAIL syntax $f : $out2"; $fail++ }
+    else { Log "FAIL syntax $f : $out"; $fail++ }
   }
 } else { Log "WARN no luajit - syntax skipped"; $fail++ }
 
