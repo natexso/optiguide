@@ -1,0 +1,28 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LuaJIT
+        run: winget install --id DEVCOM.LuaJIT -e --silent --accept-package-agreements --accept-source-agreements
+      - name: Run tests
+        run: |
+          $jit = "$env:LOCALAPPDATA\Programs\LuaJIT\bin\luajit.exe"
+          if (-not (Test-Path $jit)) { $jit = (Get-Command luajit).Source }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -LuaJit $jit
+      - name: Bench
+        run: |
+          $jit = "$env:LOCALAPPDATA\Programs\LuaJIT\bin\luajit.exe"
+          if (-not (Test-Path $jit)) { $jit = (Get-Command luajit).Source }
+          $ad = "./OptiGuide"
+          $pre = "OptiGuideNS = {}`nADDON_FILES = {}`n"
+          Get-Content "$ad/OptiGuide.toc" | Where-Object { $_ -match '\.lua$' } | ForEach-Object {
+            $f = $_.Trim(); $s = Get-Content (Join-Path $ad $f) -Raw
+            $pre += "ADDON_FILES[`"$f`"] = [==[$s]==]`n"
+          }
+          ($pre + (Get-Content tests/bench.lua -Raw)) | Set-Content tests/logs/bench-bundle.lua
+          & $jit tests/logs/bench-bundle.lua
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2

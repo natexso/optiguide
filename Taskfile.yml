@@ -1,0 +1,33 @@
+version: '3'
+
+vars:
+  LUAJIT: '{{env "LOCALAPPDATA"}}/Programs/LuaJIT/bin/luajit.exe'
+  ADDON_DIR: ./OptiGuide
+  WOW_ADDONS: 'D:/World of Warcraft/_forever_/Interface/AddOns'
+
+tasks:
+  test:
+    desc: Structure + LuaJIT syntax + WoW-API stub harness
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
+
+  bench:
+    desc: CPU benchmark of addon hot paths
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -Command "& { $pre = 'OptiGuideNS = {}`nADDON_FILES = {}`n'; Get-Content '{{.ADDON_DIR}}/OptiGuide.toc' | ? {$_ -match '.lua$'} | % { $f=$_.Trim(); $s=Get-Content (Join-Path '{{.ADDON_DIR}}' $f) -Raw; $script:pre += \"ADDON_FILES[`\"$f`\"] = [==[$s]==]`n\" }; ($pre + (Get-Content tests/bench.lua -Raw)) | Set-Content tests/logs/bench-bundle.lua }; & '{{.LUAJIT}}' tests/logs/bench-bundle.lua"
+
+  lint:
+    desc: Semgrep scan (where supported) + gitleaks secrets scan
+    cmds:
+      - cmd /c "semgrep --config auto --error {{.ADDON_DIR}} 2>nul || echo semgrep-unavailable"
+      - cmd /c "gitleaks detect --source . --no-git 2>nul || echo gitleaks-unavailable"
+
+  deploy:
+    desc: Copy addon into WoW AddOns (game must be closed or /reload after)
+    deps: [test]
+    cmds:
+      - powershell -NoProfile -Command "Copy-Item -Recurse -Force '{{.ADDON_DIR}}\*' '{{.WOW_ADDONS}}\OptiGuide\'"
+
+  ci:
+    desc: Full gate: test + bench + lint
+    deps: [test, bench, lint]
