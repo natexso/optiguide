@@ -38,7 +38,7 @@ if ($haveJit) {
 $pre = "OptiGuideNS = {}`nADDON_FILES = {}`n"
 foreach ($f in $luaFiles) {
   $src = Get-Content (Join-Path $AddonDir $f) -Raw
-  $pre += "ADDON_FILES[`"$f`"] = [==[$src==]`n"
+  $pre += "ADDON_FILES[`"$f`"] = [==[$src]==]`n"
 }
 $bundle = $pre + (Get-Content "$PSScriptRoot\harness.lua" -Raw)
 $bundlePath = "$logDir\bundle.lua"
