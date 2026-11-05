@@ -5,9 +5,12 @@ local _, OG = ...
 local function ok(...)
   return OG.db and OG.db.auto and not InCombatLockdown()
 end
+local function on(key)
+  return OG.db and OG.db.auto and OG.db[key] ~= false and not InCombatLockdown()
+end
 
 OG:RegisterEvent("GOSSIP_SHOW", function()
-  if not ok() then return end
+  if not on("autoGossip") then return end
   local nAvail = (C_GossipInfo.GetNumAvailableQuests and C_GossipInfo.GetNumAvailableQuests())
               or (GetNumGossipAvailableQuests and GetNumGossipAvailableQuests()) or 0
   local nAct = (C_GossipInfo.GetNumActiveQuests and C_GossipInfo.GetNumActiveQuests())
@@ -30,23 +33,24 @@ OG:RegisterEvent("GOSSIP_SHOW", function()
 end)
 
 OG:RegisterEvent("QUEST_GREETING", function()
-  if not ok() then return end
+  if not on("autoAccept") and not on("autoTurnin") then return end
   local na, nc = GetNumAvailableQuests() or 0, GetNumActiveQuests() or 0
-  if nc > 0 then SelectActiveQuest(1) elseif na == 1 then SelectAvailableQuest(1) end
+  if nc > 0 and on("autoTurnin") then SelectActiveQuest(1)
+  elseif na == 1 and on("autoAccept") then SelectAvailableQuest(1) end
 end)
 
 OG:RegisterEvent("QUEST_DETAIL", function()
-  if ok() and AcceptQuest then AcceptQuest() end
+  if on("autoAccept") and AcceptQuest then AcceptQuest() end
 end)
 
 OG:RegisterEvent("QUEST_PROGRESS", function()
-  if ok() and IsQuestCompletable and IsQuestCompletable() and ContinueQuest then
+  if on("autoTurnin") and IsQuestCompletable and IsQuestCompletable() and ContinueQuest then
     ContinueQuest()
   end
 end)
 
 OG:RegisterEvent("QUEST_COMPLETE", function()
-  if not ok() then return end
+  if not on("autoTurnin") then return end
   local n = (GetNumQuestChoices and GetNumQuestChoices()) or 0
   if n <= 1 and GetQuestReward then
     GetQuestReward(n == 1 and 1 or nil)

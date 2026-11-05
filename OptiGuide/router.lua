@@ -66,13 +66,14 @@ function OG:CurrentZoneName()
   return info and info.name or nil, m
 end
 
--- pick the closest quest-log waypoint on the player's continent
-local function BestQuestWaypoint()
+-- gather quest-log waypoints on the player's continent, nearest first
+local wpIndex = 0
+local function QuestWaypoints()
   local px, py = OG:PlayerWorld()
-  if not px then return nil end
+  local list = {}
+  if not px then return list end
   local pMap = C_Map.GetBestMapForUnit("player")
   local pTop = pMap and TopMap(pMap)
-  local best, bestD
   local n = C_QuestLog.GetNumQuestLogEntries()
   for i = 1, n do
     local info = C_QuestLog.GetInfo(i)
@@ -83,24 +84,34 @@ local function BestQuestWaypoint()
         if wTop and pTop and wTop.mapID == pTop.mapID then
           local mx, my = WorldPos(mID, wx, wy)
           if mx then
-            local d = (mx - px) ^ 2 + (my - py) ^ 2
-            if not bestD or d < bestD then
-              bestD = d
-              best = { kind = "quest", questID = info.questID, title = info.title,
-                       mapID = mID, x = wx, y = wy, wx = mx, wy = my }
-            end
+            list[#list + 1] = { kind = "quest", questID = info.questID, title = info.title,
+                                mapID = mID, x = wx, y = wy, wx = mx, wy = my,
+                                d = (mx - px) ^ 2 + (my - py) ^ 2 }
           end
         end
       end
     end
   end
-  return best
+  table.sort(list, function(a, b) return a.d < b.d end)
+  return list
+end
+
+local lastWPs = {}
+function OG:CycleWaypoint(dir)
+  if #lastWPs == 0 then OG:Retarget(); return end
+  wpIndex = ((wpIndex + dir - 1) % #lastWPs) + 1
+  OG.target = lastWPs[wpIndex]
+  OG.currentStep = ("Quest %d/%d: %s"):format(wpIndex, #lastWPs, OG.target.title or "?")
+  pcall(C_SuperTrack.SetSuperTrackedQuestID, OG.target.questID)
+  OG:UpdateArrow(); OG:UpdatePanel()
 end
 
 function OG:Retarget()
   local level = UnitLevel("player") or 1
   local zoneName = OG:CurrentZoneName()
-  local qp = BestQuestWaypoint()
+  lastWPs = QuestWaypoints()
+  wpIndex = 1
+  local qp = lastWPs[1]
 
   if qp then
     OG.target = qp
@@ -129,6 +140,12 @@ function OG:Retarget()
     OG.currentStep = "No waypoint"
   end
 
+  if OG.db and OG.db.notify and OG.currentStep ~= OG.lastStep then
+    OG.lastStep = OG.currentStep
+    OG:Print(OG.currentStep)
+  else
+    OG.lastStep = OG.currentStep
+  end
   OG:UpdateArrow()
   OG:UpdatePanel()
 end
@@ -152,5 +169,10 @@ for _, e in ipairs({
   "QUEST_WATCH_LIST_CHANGED", "ZONE_CHANGED_NEW_AREA", "PLAYER_LEVEL_UP",
   "PLAYER_ENTERING_WORLD", "QUEST_POI_UPDATE",
 }) do
-  OG:RegisterEvent(e, ScheduleRetarget)
+  OG:RegisterEvent(e, function(...)
+    ScheduleRetarget()
+    if e == "QUEST_TURNED_IN" and OG.db and OG.db.soundComplete and PlaySound then
+      pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_LOG_COMPLETE) or 6199)
+    end
+  end)
 end

@@ -12,3 +12,4 @@ router.lua
 arrow.lua
 panel.lua
 auto.lua
+options.lua

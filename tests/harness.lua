@@ -100,7 +100,16 @@ GetNumGossipAvailableQuests = function() return 0 end
 GetNumGossipActiveQuests = function() return 0 end
 GetGossipOptions = function() return {} end
 GetQuestLogTitle = function() return "x" end
-IsInInstance = function() return false end
+IsInInstance = function() return TEST_INSTANCE or false end
+GetTime = function() return TEST_TIME or 600 end
+UnitXP = function() return TEST_XP or 500 end
+UnitXPMax = function() return 2000 end
+GetXPExhaustion = function() return TEST_RESTED or 0 end
+PlaySound = function() end
+SOUNDKIT = { IG_QUEST_LOG_COMPLETE = 6199 }
+C_QuestLog.GetQuestObjectives = function(qid)
+  return { { finished = false }, { finished = true } }
+end
 
 -- ---------- load addon in toc order ----------
 local ORDER = { "core.lua", "data_horde.lua", "router.lua", "arrow.lua", "panel.lua", "auto.lua" }
@@ -152,6 +161,39 @@ check("slash scale", OG.db.scale == 1.5)
 SlashCmdList.OPTIGUIDE("route")
 check("slash route off", OG.db.zoneRoute == false)
 SlashCmdList.OPTIGUIDE("route")
+
+-- waypoint cycling
+TEST_QUESTS = {
+  { isHeader = false, isHidden = false, questID = 11, title = "Near" },
+  { isHeader = false, isHidden = false, questID = 22, title = "Far" },
+}
+C_QuestLog.GetNextWaypoint = function(qid)
+  if qid == 11 then return 200, 0.10, 0.10 end
+  if qid == 22 then return 200, 0.90, 0.90 end
+end
+TEST_PX, TEST_PY = 0, 0
+fire("QUEST_LOG_UPDATE"); runTimers()
+check("cycle starts near", OG.target.questID == 11)
+OG:CycleWaypoint(1)
+check("cycle next", OG.target.questID == 22)
+OG:CycleWaypoint(1)
+check("cycle wraps", OG.target.questID == 11)
+OG:CycleWaypoint(-1)
+check("cycle prev", OG.target.questID == 22)
+
+-- granular auto toggles: master on + turnin off -> detail still accepts, complete ignored
+called = {}
+OG.db.autoAccept, OG.db.autoTurnin = true, false
+fire("QUEST_DETAIL")
+check("autoAccept granular", called.accept == true)
+fire("QUEST_COMPLETE")
+check("autoTurnin off respected", called.reward == nil)
+OG.db.autoTurnin = true
+
+-- xp/rested line doesn't crash
+TEST_XP, TEST_RESTED = 800, 4000
+OG:UpdatePanel()
+check("xp panel ok", true)
 
 -- arrow math: player facing north (0), target straight east -> arrow ~ -pi/2 or +pi/2
 TEST_QUESTS = { { isHeader = false, isHidden = false, questID = 33, title = "East" } }

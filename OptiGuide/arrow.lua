@@ -40,9 +40,24 @@ frame:SetScript("OnUpdate", function(_, dt)
   OG:RefreshArrow()
 end)
 
+local function ObjectiveText(qid)
+  if not (OG.db.arrowProgress and qid and C_QuestLog.GetQuestObjectives) then return nil end
+  local ok, objs = pcall(C_QuestLog.GetQuestObjectives, qid)
+  if not ok or not objs then return nil end
+  local done, total = 0, 0
+  for _, o in ipairs(objs) do
+    total = total + 1
+    if o.finished then done = done + 1 end
+  end
+  if total == 0 then return nil end
+  return ("%d/%d"):format(done, total)
+end
+
 function OG:RefreshArrow()
   local t = OG.target
-  if not (OG.db and OG.db.arrow and t and t.wx) then
+  local hidden = (OG.db.hideCombat and InCombatLockdown())
+              or (OG.db.hideInstance and IsInInstance and IsInInstance())
+  if not (OG.db and OG.db.arrow and t and t.wx) or hidden then
     frame:Hide()
     return
   end
@@ -53,7 +68,8 @@ function OG:RefreshArrow()
   local angle = math.atan2(-dx, dy) - facing
   tex:SetRotation(-angle) -- SetRotation is CCW-positive; negate to match heading
   dist:SetFormattedText("%d yd", math.sqrt(dx * dx + dy * dy))
-  label:SetText(t.title or "")
+  local prog = ObjectiveText(t.questID)
+  label:SetText(t.title .. (prog and ("  " .. prog) or ""))
   frame:Show()
 end
 
@@ -64,6 +80,7 @@ function OG:UpdateArrow()
     frame:ClearAllPoints()
     frame:SetPoint(p[1], p[2], p[3], p[4], p[5])
     frame:SetScale(OG.db.scale or 1)
+    frame:SetAlpha(OG.db.opacity or 1)
     frame:Show()
     OG:RefreshArrow()
   else
