@@ -15,11 +15,11 @@ end
 
 local frames = {}
 local function mockObj(kind)
-  local o = { kind = kind, shown = false, scripts = {}, texts = {} }
+  local o = { kind = kind, shown = false, scripts = {}, texts = {}, regd = {} }
   local mt = { __index = function(_, k)
     if k == "SetScript" then return function(s, n, f) s.scripts[n] = f end
     elseif k == "GetScript" then return function(s, n) return s.scripts[n] end
-    elseif k == "RegisterEvent" then return function(s, e) s.regd = s.regd or {}; s.regd[e] = true end
+    elseif k == "RegisterEvent" then return function(s, e) s.regd[e] = true end
     elseif k == "Show" then return function(s) s.shown = true end
     elseif k == "Hide" then return function(s) s.shown = false end
     elseif k == "IsShown" then return function(s) return s.shown end
